@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#18382d">
+  <meta name="description" content="PaaniPact is a demo for fair, explainable scheduling of a shared irrigation pump.">
+  <title>PaaniPact — Shared pump schedule</title>
+  <style>
+    :root {
+      --forest: #18382d;
+      --forest-2: #24483a;
+      --ink: #17251f;
+      --muted: #718078;
+      --line: #e7ece7;
+      --paper: #ffffff;
+      --canvas: #f5f7f3;
+      --lime: #d9f39a;
+      --green: #3c795b;
+      --green-soft: #e7f3e9;
+      --blue-soft: #e9f0f8;
+      --amber: #a56c19;
+      --amber-soft: #fff3d9;
+      --red: #aa4b43;
+      --red-soft: #fce9e6;
+      --shadow: 0 8px 30px rgba(20, 42, 31, .045);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 246px; flex: 0 0 246px; background: var(--forest); color: #f5f7f2;
+      padding: 25px 17px 18px; display: flex; flex-direction: column; position: sticky; top: 0;
+      height: 100vh; overflow-y: auto;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 30px; }
+    .brand-mark { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 12px; background: var(--lime); color: var(--forest); }
+    .brand-name { font-size: 20px; font-weight: 760; letter-spacing: -.7px; }
+    .workspace-label { color: #a6b8ad; font-size: 10px; font-weight: 750; letter-spacing: 1.2px; text-transform: uppercase; padding: 0 11px; margin-bottom: 9px; }
+    .side-nav { display: grid; gap: 5px; }
+    .side-nav a { display: flex; align-items: center; gap: 12px; border-radius: 10px; text-decoration: none; color: #c7d4cb; padding: 11px 12px; font-size: 13px; font-weight: 580; transition: .18s ease; }
+    .side-nav a:hover { background: rgba(255,255,255,.08); color: white; }
+    .side-nav a.active { color: var(--forest); background: var(--lime); font-weight: 720; }
+    .side-nav svg { width: 17px; height: 17px; flex: 0 0 17px; }
+    .sidebar-spacer { flex: 1; min-height: 30px; }
+    .pilot-card { padding: 14px; border: 1px solid rgba(255,255,255,.13); border-radius: 13px; background: rgba(255,255,255,.055); margin: 0 3px 16px; }
+    .pilot-kicker { display: flex; gap: 7px; align-items: center; font-size: 11px; font-weight: 680; color: #e8f2e9; }
+    .pulse-dot { width: 7px; height: 7px; background: var(--lime); border-radius: 99px; box-shadow: 0 0 0 4px rgba(217,243,154,.11); }
+    .pilot-card p { font-size: 11px; line-height: 1.55; color: #b5c7bb; margin: 9px 0 0; }
+    .profile { display: flex; align-items: center; gap: 10px; padding: 13px 6px 0; border-top: 1px solid rgba(255,255,255,.12); }
+    .profile-avatar { width: 33px; height: 33px; display: grid; place-items: center; border-radius: 50%; background: #dce9d6; color: var(--forest); font-size: 12px; font-weight: 800; }
+    .profile-name { font-size: 12px; font-weight: 680; }
+    .profile-caption { color: #a6b8ad; font-size: 10px; margin-top: 3px; }
+    .main { flex: 1; min-width: 0; }
+    .topbar { height: 69px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.86); display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(20px, 4vw, 54px); }
+    .crumb { display: flex; align-items: center; gap: 9px; color: #89958d; font-size: 12px; }
+    .crumb strong { color: var(--ink); font-weight: 650; }
+    .top-actions { display: flex; gap: 9px; align-items: center; }
+    .demo-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #dce4dc; border-radius: 100px; padding: 7px 10px; color: #607067; background: #fff; font-size: 10px; font-weight: 720; letter-spacing: .5px; text-transform: uppercase; }
+    .demo-chip span { width: 6px; height: 6px; border-radius: 50%; background: #cf9b39; }
+    .icon-button { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 9px; background: white; color: #536258; }
+    .content { max-width: 1450px; margin: 0 auto; padding: 29px clamp(20px, 4vw, 54px) 48px; }
+    .hero { display: grid; grid-template-columns: minmax(0,1fr) 302px; gap: 24px; align-items: center; padding: 25px 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--shadow); }
+    .eyebrow { color: var(--green); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1.1px; font-size: 10px; font-weight: 780; margin-bottom: 12px; }
+    .eyebrow::before { content: ""; width: 17px; height: 2px; border-radius: 4px; background: #6c9e70; }
+    h1 { font-size: clamp(25px, 3.2vw, 36px); letter-spacing: -1.4px; line-height: 1.14; margin: 0; max-width: 680px; }
+    .hero-copy { color: #728077; font-size: 13px; line-height: 1.65; max-width: 620px; margin: 12px 0 0; }
+    .hero-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+    .tag { padding: 6px 9px; border-radius: 7px; background: #f2f6ef; color: #536e59; font-size: 10px; font-weight: 650; }
+    .weather-card { border: 1px solid #e8eee5; border-radius: 13px; padding: 16px; background: #f8faf5; min-height: 124px; display: flex; flex-direction: column; justify-content: space-between; }
+    .weather-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .weather-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; color: #597f6a; background: #e8f1e6; }
+    .weather-status { color: #77847b; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; font-weight: 750; margin-bottom: 5px; }
+    .weather-title { font-size: 14px; font-weight: 740; }
+    .weather-sub { font-size: 11px; color: #78857c; margin-top: 4px; }
+    .toggle { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 0; color: #476f56; font-size: 11px; font-weight: 700; align-self: flex-start; }
+    .toggle-track { width: 31px; height: 18px; border-radius: 12px; padding: 2px; background: #ccd6ce; transition: .2s; }
+    .toggle-knob { display: block; height: 14px; width: 14px; background: white; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px #0002; }
+    .toggle[aria-pressed="true"] .toggle-track { background: #568466; }
+    .toggle[aria-pressed="true"] .toggle-knob { transform: translateX(13px); }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin: 16px 0; }
+    .stat-card { background: white; border: 1px solid var(--line); border-radius: 13px; padding: 15px 17px; box-shadow: var(--shadow); min-height: 95px; }
+    .stat-head { display: flex; align-items: center; justify-content: space-between; gap: 7px; color: #77847c; font-size: 11px; font-weight: 600; }
+    .stat-symbol { width: 27px; height: 27px; border-radius: 9px; display: grid; place-items: center; color: #587b62; background: #eff5ed; }
+    .stat-value { font-size: 24px; line-height: 1; letter-spacing: -.8px; font-weight: 760; margin-top: 10px; }
+    .stat-note { font-size: 10px; color: #8b968e; margin-top: 5px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 28px 0 13px; }
+    .section-heading h2 { font-size: 17px; letter-spacing: -.4px; margin: 0; }
+    .section-heading p { color: #819087; font-size: 11px; margin: 4px 0 0; }
+    .heading-controls { display: flex; align-items: center; gap: 9px; }
+    .select-wrap { display: flex; align-items: center; gap: 7px; color: #78857d; font-size: 11px; white-space: nowrap; }
+    .select-wrap select { border: 1px solid #dfe6df; border-radius: 8px; background: white; padding: 8px 27px 8px 9px; color: #3d5144; font-size: 11px; font-weight: 650; outline-color: #78a67f; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #dfe6df; background: white; color: #476052; border-radius: 9px; padding: 9px 12px; font-size: 11px; font-weight: 700; transition: .18s ease; }
+    .button:hover { transform: translateY(-1px); box-shadow: 0 5px 13px #1a3c2914; }
+    .button-primary { border-color: var(--forest); background: var(--forest); color: white; }
+    .button-primary:hover { background: #244a39; }
+    .button svg { width: 14px; height: 14px; }
+    .schedule-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(270px, .85fr); gap: 14px; align-items: stretch; }
+    .panel { background: white; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .schedule-panel { padding: 18px; }
+    .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 13px; border-bottom: 1px solid #edf0ec; }
+    .panel-title { font-size: 13px; font-weight: 750; }
+    .panel-caption { font-size: 10px; color: #839087; margin-top: 4px; }
+    .date-pill { padding: 6px 9px; background: #f5f7f3; border: 1px solid #edf0eb; color: #68776e; border-radius: 7px; font-size: 10px; font-weight: 680; white-space: nowrap; }
+    .schedule-list { display: grid; }
+    .schedule-row { display: grid; grid-template-columns: 74px 25px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 13px 1px; border-bottom: 1px solid #f0f2ef; }
+    .schedule-row:last-child { border-bottom: 0; }
+    .time-label { color: #415449; font-size: 10px; line-height: 1.45; font-weight: 750; white-space: nowrap; }
+    .timeline-dot { position: relative; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: #edf5ec; color: #54805e; font-size: 9px; font-weight: 800; }
+    .schedule-row:not(:last-child) .timeline-dot::after { content: ""; position: absolute; top: 22px; width: 1px; height: 28px; background: #dae7d9; }
+    .farmer-name { font-size: 12px; font-weight: 710; }
+    .farmer-meta { font-size: 10px; color: #89948d; margin-top: 4px; }
+    .reason { color: #75857a; font-size: 9px; margin-top: 4px; line-height: 1.4; }
+    .row-right { text-align: right; }
+    .need-badge { display: inline-flex; align-items: center; border-radius: 99px; padding: 5px 8px; font-size: 9px; font-weight: 750; text-transform: capitalize; }
+    .need-high { background: var(--red-soft); color: var(--red); }
+    .need-medium { background: var(--amber-soft); color: var(--amber); }
+    .need-low { background: var(--green-soft); color: var(--green); }
+    .duration-label { margin-top: 5px; color: #6f7e75; font-size: 9px; }
+    .empty-state { padding: 30px 12px; color: #78877e; text-align: center; font-size: 12px; }
+    .waitlist { border-top: 1px dashed #e8ece7; margin-top: 4px; padding-top: 11px; }
+    .waitlist-title { font-size: 10px; color: #8b7562; font-weight: 750; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+    .wait-item { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 10px; color: #756e66; }
+    .logic-panel { background: #f0f5ed; border: 1px solid #e1eadc; padding: 18px; }
+    .logic-head { display: flex; align-items: center; gap: 9px; }
+    .logic-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: white; color: #54785a; }
+    .logic-head h3 { font-size: 12px; margin: 0; }
+    .logic-head span { display: block; font-size: 9px; color: #839083; margin-top: 3px; }
+    .logic-copy { font-size: 10px; line-height: 1.55; color: #657568; margin: 14px 0; }
+    .formula { border-radius: 10px; background: rgba(255,255,255,.77); border: 1px solid #e4ebe0; padding: 11px; }
+    .formula-title { color: #839083; font-size: 9px; text-transform: uppercase; letter-spacing: .7px; font-weight: 780; }
+    .formula-main { font-size: 11px; line-height: 1.65; color: #465a4a; font-weight: 650; margin-top: 6px; }
+    .logic-points { display: grid; gap: 9px; margin-top: 13px; }
+    .logic-point { display: flex; gap: 8px; color: #657568; font-size: 10px; line-height: 1.45; }
+    .check { flex: 0 0 15px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; color: #53805a; background: #dfeedd; font-size: 9px; font-weight: 800; }
+    .lower-grid { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(270px,.85fr); gap: 14px; margin-top: 14px; }
+    .farm-panel { padding: 18px; }
+    .farm-list { display: grid; margin-top: 10px; }
+    .farm-item { display: grid; grid-template-columns: 32px minmax(0,1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f2ef; }
+    .farm-item:last-child { border-bottom: 0; }
+    .farm-avatar { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #f0f4eb; color: #54765a; font-size: 10px; font-weight: 800; }
+    .farm-item-name { font-size: 11px; font-weight: 710; }
+    .farm-item-meta { color: #89948d; font-size: 9px; margin-top: 3px; }
+    .farm-fairness { color: #77847c; text-align: right; font-size: 9px; white-space: nowrap; }
+    .remove-btn { color: #9a817a; border: 0; background: transparent; padding: 5px; border-radius: 6px; font-size: 10px; }
+    .remove-btn:hover { background: #f9eeeb; color: #9f5148; }
+    .add-farm { margin-top: 12px; border: 1px dashed #d6e0d5; border-radius: 10px; padding: 11px 12px; background: #fbfcfa; }
+    .add-farm summary { list-style: none; display: flex; align-items: center; gap: 7px; cursor: pointer; color: #4c7557; font-size: 10px; font-weight: 750; }
+    .add-farm summary::-webkit-details-marker { display: none; }
+    .add-farm summary::before { content: "+"; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; background: #e8f2e5; font-size: 14px; line-height: 1; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 13px; }
+    .form-field { display: grid; gap: 5px; }
+    .form-field label { color: #78847b; font-size: 9px; font-weight: 670; }
+    .form-field input, .form-field select { min-width: 0; width: 100%; border: 1px solid #e0e7df; border-radius: 7px; padding: 8px; color: #32443a; background: white; font-size: 10px; outline-color: #77a57b; }
+    .form-submit { margin-top: 11px; width: 100%; }
+    .insight-panel { padding: 18px; }
+    .balance-graphic { height: 106px; display: flex; align-items: end; justify-content: space-around; gap: 11px; padding: 14px 13px 0; margin-top: 16px; border-bottom: 1px solid #ecf0eb; background: linear-gradient(180deg,#fff 0%,#f8faf6 100%); border-radius: 10px 10px 0 0; }
+    .bar-wrap { height: 100%; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: end; gap: 5px; }
+    .bar { width: min(30px,75%); border-radius: 5px 5px 0 0; background: linear-gradient(180deg,#9ac582,#548467); min-height: 8px; transition: height .25s; }
+    .bar-label { color: #879189; font-size: 8px; margin-bottom: 6px; }
+    .insight-copy { font-size: 10px; line-height: 1.55; color: #7a877e; margin: 10px 0 0; }
+    .disclaimer { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; margin-top: 15px; border-radius: 9px; background: #fff8e9; color: #806b47; font-size: 9px; line-height: 1.5; }
+    .disclaimer strong { color: #72582e; }
+    .footer { display: flex; justify-content: space-between; gap: 15px; padding: 20px 2px 0; color: #9aa39c; font-size: 9px; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; color: white; background: #1d3c2e; border-radius: 10px; padding: 11px 15px; box-shadow: 0 8px 24px #18382d33; font-size: 11px; transition: .22s ease; z-index: 20; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 1020px) {
+      .sidebar { width: 211px; flex-basis: 211px; }
+      .hero { grid-template-columns: minmax(0,1fr) 270px; }
+      .schedule-layout, .lower-grid { grid-template-columns: minmax(0,1.2fr) minmax(245px,.8fr); }
+      .schedule-row { grid-template-columns: 69px 24px minmax(0,1fr) auto; gap: 7px; }
+    }
+    @media (max-width: 780px) {
+      .sidebar { width: 62px; flex-basis: 62px; padding: 17px 8px; align-items: center; }
+      .brand { padding: 0; margin: 0 0 28px; }
+      .brand-name, .workspace-label, .side-nav span, .pilot-card, .profile-copy { display: none; }
+      .side-nav { width: 100%; }
+      .side-nav a { justify-content: center; padding: 12px 0; }
+      .side-nav svg { width: 19px; height: 19px; }
+      .sidebar-spacer { min-height: 15px; }
+      .profile { border-top: 0; padding: 0; }
+      .profile-avatar { width: 31px; height: 31px; }
+      .hero { grid-template-columns: 1fr; }
+      .weather-card { min-height: 0; gap: 13px; }
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .schedule-layout, .lower-grid { grid-template-columns: 1fr; }
+      .topbar { padding-inline: 18px; }
+      .content { padding-inline: 17px; }
+    }
+    @media (max-width: 540px) {
+      .topbar { height: 58px; }
+      .crumb { font-size: 10px; }
+      .demo-chip { font-size: 8px; padding: 6px 7px; }
+      .content { padding-top: 17px; }
+      .hero { padding: 20px; }
+      .stats { gap: 8px; }
+      .stat-card { padding: 12px; min-height: 88px; }
+      .stat-value { font-size: 21px; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .heading-controls { width: 100%; justify-content: space-between; }
+      .schedule-panel, .logic-panel, .farm-panel, .insight-panel { padding: 14px; }
+      .schedule-row { grid-template-columns: 62px 20px minmax(0,1fr); gap: 7px; }
+      .row-right { grid-column: 3; text-align: left; display: flex; align-items: center; gap: 7px; }
+      .duration-label { margin: 0; }
+      .schedule-row:not(:last-child) .timeline-dot::after { height: 42px; }
+      .farm-item { grid-template-columns: 30px minmax(0,1fr) auto; }
+      .farm-fairness { display: none; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .footer { flex-direction: column; }
+    }
+    @media print {
+      .sidebar, .topbar, .heading-controls, .weather-card .toggle, .add-farm, .remove-btn, .footer, .toast { display: none !important; }
+      .main { width: 100%; }
+      .content { max-width: none; padding: 0; }
+      body { background: white; }
+      .hero, .panel, .stat-card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 2.8C9.5 6.5 5.8 10.2 5.8 14.3a6.2 6.2 0 0 0 12.4 0C18.2 10.2 14.5 6.5 12 2.8Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 15.1c.3 1.5 1.4 2.4 2.8 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </div>
+        <div class="brand-name">paanipact</div>
+      </div>
+      <div class="workspace-label">Workspace</div>
+      <nav class="side-nav">
+        <a class="active" href="#overview" data-nav="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span>Overview</span></a>
+        <a href="#schedule" data-nav="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.3 2" stroke-linecap="round"/></svg><span>Turn schedule</span></a>
+        <a href="#farmers" data-nav="farmers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.5-3 2.2-4.5 5.5-4.5s5 1.5 5.5 4.5M16 5.5a2.8 2.8 0 0 1 0 5.3M17.5 14.7c2 .4 3.1 1.8 3.4 4.3" stroke-linecap="round"/></svg><span>Farm group</span></a>
+        <a href="#how-it-works" data-nav="how-it-works"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.4 1.6c-1.2 1.1-2 1.5-2 3M12 17.2h.01" stroke-linecap="round"/></svg><span>How it works</span></a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="pilot-card">
+        <div class="pilot-kicker"><span class="pulse-dot"></span> Prototype workspace</div>
+        <p>Schedules are illustrative. No pump is connected and no data leaves this browser.</p>
+      </div>
+      <div class="profile">
+        <div class="profile-avatar" aria-hidden="true">D</div>
+        <div class="profile-copy"><div class="profile-name">Datia pilot group</div><div class="profile-caption">Sample community</div></div>
+      </div>
+    </aside>
+
+    <main class="main" id="overview">
+      <header class="topbar">
+        <div class="crumb"><span>Community water</span><span aria-hidden="true">/</span><strong>Overview</strong></div>
+        <div class="top-actions">
+          <span class="demo-chip"><span></span> Demo data</span>
+          <button class="icon-button" id="resetBtn" title="Reset sample data" aria-label="Reset sample data">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.8 11a8.3 8.3 0 1 1 .7 4.3M3.8 5.5v5.8h5.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <div class="eyebrow">Shared pump scheduling</div>
+            <h1 id="hero-title">One pump. Five farms.<br>One fair plan.</h1>
+            <p class="hero-copy">PaaniPact helps a community make a clear, explainable irrigation-turn plan around stated need, waiting time and the group’s available pump hours.</p>
+            <div class="hero-tags"><span class="tag">Community-first</span><span class="tag">Explainable priorities</span><span class="tag">No sensor required for this demo</span></div>
+          </div>
+          <div class="weather-card">
+            <div class="weather-top">
+              <div style="display:flex;gap:11px;align-items:center">
+                <div class="weather-icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 17.5h10.2a3.3 3.3 0 0 0 .3-6.6A5.6 5.6 0 0 0 6.8 9.7 3.9 3.9 0 0 0 7 17.5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 20-1 1.5m6-1.5-1 1.5m6-1.5-1 1.5" stroke-linecap="round"/></svg></div>
+                <div><div class="weather-status">Planning input</div><div class="weather-title" id="weatherTitle">Rain expected</div><div class="weather-sub">Tomorrow · sample forecast</div></div>
+              </div>
+            </div>
+            <button class="toggle" id="rainToggle" aria-pressed="true" type="button"><span class="toggle-track"><span class="toggle-knob"></span></span><span id="rainToggleText">Rain adjustment on</span></button>
+          </div>
+        </section>
+
+        <section class="stats" aria-label="Schedule summary">
+          <article class="stat-card"><div class="stat-head"><span>Available pump time</span><span class="stat-symbol"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg></span></div><div class="stat-value"><span id="availableStat">8</span><span style="font-size:13px;font-weight:650"> hrs</span></div><div class="stat-note">Set for this planning window</div></article>
+          <article class="stat-card"><div class="stat-head"><span>Requested time</span><span class="stat-symbol"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 19V5m0 14h14M8 15l3-4 3 2 5-7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="stat-value"><span id="requestedStat">0</span><span style="font-size:13px;font-weight:650"> hrs</span></div><div class="stat-note">Based on each request’s demo duration</div></article>
+          <article class="stat-card"><div class="stat-head"><span>Scheduled</span><span class="stat-symbol"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m5 12.5 4.2 4.2L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="stat-value"><span id="scheduledStat">0</span><span style="font-size:13px;font-weight:650"> hrs</span></div><div class="stat-note" id="scheduledNote">Recalculated from the queue</div></article>
+          <article class="stat-card"><div class="stat-head"><span>Farmers in group</span><span class="stat-symbol"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.5-3 2.2-4.5 5.5-4.5s5 1.5 5.5 4.5M16 5.5a2.8 2.8 0 0 1 0 5.3M17.5 14.7c2 .4 3.1 1.8 3.4 4.3" stroke-linecap="round"/></svg></span></div><div class="stat-value" id="farmerCountStat">0</div><div class="stat-note">Sample group members</div></article>
+        </section>
+
+        <section id="schedule" aria-labelledby="schedule-heading">
+          <div class="section-heading">
+            <div><h2 id="schedule-heading">Recommended turn schedule</h2><p>Review the queue together before confirming any real-world turn.</p></div>
+            <div class="heading-controls">
+              <label class="select-wrap" for="pumpHours">Pump window
+                <select id="pumpHours" aria-label="Available pump hours">
+                  <option value="4">4 hours</option><option value="6">6 hours</option><option value="8" selected>8 hours</option><option value="10">10 hours</option>
+                </select>
+              </label>
+              <button class="button" id="exportBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 16v4h14v-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button>
+            </div>
+          </div>
+          <div class="schedule-layout">
+            <section class="panel schedule-panel" aria-label="Suggested pump time slots">
+              <div class="panel-top"><div><div class="panel-title">Tomorrow’s plan</div><div class="panel-caption">Suggested slots · starts at 6:00 AM</div></div><span class="date-pill" id="tomorrowDate">Tomorrow</span></div>
+              <div class="schedule-list" id="scheduleList" aria-live="polite"></div>
+              <div class="waitlist" id="waitlist" hidden></div>
+            </section>
+            <aside class="logic-panel panel" id="how-it-works">
+              <div class="logic-head"><div class="logic-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.5 19 7v5.5c0 4.2-2.8 6.8-7 8-4.2-1.2-7-3.8-7-8V7l7-3.5Z" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h3>How this plan is made</h3><span>Transparent demo rule</span></div></div>
+              <p class="logic-copy">The queue balances a farmer’s stated need with how long they have waited and when they last received a turn. The group can review and change the plan.</p>
+              <div class="formula"><div class="formula-title">Demo priority score</div><div class="formula-main">Need level + time since watering + time since last turn − rain adjustment</div></div>
+              <div class="logic-points"><div class="logic-point"><span class="check">✓</span><span><strong>Need first:</strong> high, medium and low are example inputs—not crop-science advice.</span></div><div class="logic-point"><span class="check">✓</span><span><strong>Fairness:</strong> a longer wait since the last turn adds priority.</span></div><div class="logic-point"><span class="check">✓</span><span><strong>Rain toggle:</strong> lowers the demo priority for non-urgent requests when rain is expected.</span></div></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="lower-grid" id="farmers">
+          <section class="panel farm-panel" aria-labelledby="farm-heading">
+            <div class="panel-top"><div><div class="panel-title" id="farm-heading">Farm group</div><div class="panel-caption">Example members and their latest turn details</div></div><span class="date-pill">Local demo data</span></div>
+            <div class="farm-list" id="farmList"></div>
+            <details class="add-farm">
+              <summary>Add a farmer to this demo</summary>
+              <form id="farmForm">
+                <div class="form-grid">
+                  <div class="form-field"><label for="newName">Farmer name</label><input id="newName" name="name" required maxlength="32" placeholder="e.g. Asha" autocomplete="off"></div>
+                  <div class="form-field"><label for="newCrop">Crop / note</label><input id="newCrop" name="crop" maxlength="24" placeholder="e.g. wheat" autocomplete="off"></div>
+                  <div class="form-field"><label for="newNeed">Stated need</label><select id="newNeed" name="need"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></div>
+                  <div class="form-field"><label for="newWatered">Days since watering</label><input id="newWatered" name="daysWatered" type="number" min="0" max="30" value="3" required></div>
+                  <div class="form-field"><label for="newTurn">Days since last turn</label><input id="newTurn" name="daysTurn" type="number" min="0" max="30" value="3" required></div>
+                </div>
+                <button class="button button-primary form-submit" type="submit">Add to sample group</button>
+              </form>
+            </details>
+          </section>
+          <aside class="panel insight-panel" aria-label="Group turn balance">
+            <div class="panel-top"><div><div class="panel-title">Turn balance at a glance</div><div class="panel-caption">Days since each farmer’s last pump turn</div></div></div>
+            <div class="balance-graphic" id="balanceGraphic" aria-label="Bar chart of days since last turn"></div>
+            <p class="insight-copy" id="balanceCopy">Bars are based on the sample turn-history values. A longer wait can add fairness priority.</p>
+            <div class="disclaimer"><span aria-hidden="true">ⓘ</span><span><strong>Prototype only.</strong> This demo does not control a pump or calculate agronomic water needs. Validate priorities and durations with farmers and an agriculture expert before real use.</span></div>
+          </aside>
+        </section>
+
+        <div class="footer"><span>PaaniPact · Hackathon prototype · Sample data stays in this browser</span><span>Plan together. Confirm locally. Never auto-start a pump.</span></div>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'paanipact-demo-v1';
+      const defaultFarms = [
+        { id: 'f1', name: 'Sita Devi', crop: 'Wheat', need: 'high', daysWatered: 6, daysTurn: 5 },
+        { id: 'f2', name: 'Ramesh', crop: 'Mustard', need: 'medium', daysWatered: 4, daysTurn: 1 },
+        { id: 'f3', name: 'Noor', crop: 'Vegetables', need: 'high', daysWatered: 3, daysTurn: 2 },
+        { id: 'f4', name: 'Mohan', crop: 'Wheat', need: 'low', daysWatered: 2, daysTurn: 6 },
+        { id: 'f5', name: 'Kamla', crop: 'Chilli', need: 'medium', daysWatered: 5, daysTurn: 4 }
+      ];
+      const needPoints = { high: 8, medium: 5, low: 2 };
+      const durationHours = { high: 1.5, medium: 1, low: 0.5 };
+      let farms = defaultFarms.map(f => ({ ...f }));
+      let rainExpected = true;
+      let availableHours = 8;
+      let toastTimer;
+      let latestRows = [];
+
+      const $ = (id) => document.getElementById(id);
+      const escapeHTML = (value) => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+
+      function persist() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ farms, rainExpected, availableHours })); } catch (_) { /* Local storage may be disabled in a preview. */ }
+      }
+      function restore() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+          if (saved && Array.isArray(saved.farms)) farms = saved.farms;
+          if (saved && typeof saved.rainExpected === 'boolean') rainExpected = saved.rainExpected;
+          if (saved && [4, 6, 8, 10].includes(Number(saved.availableHours))) availableHours = Number(saved.availableHours);
+        } catch (_) { /* Start with sample data. */ }
+      }
+      function scoreFarm(farm) {
+        const need = needPoints[farm.need] ?? needPoints.medium;
+        const sinceWater = Math.min(30, clamp(farm.daysWatered, 0, 30)) * 0.9;
+        const waitFairness = Math.min(14, clamp(farm.daysTurn, 0, 30)) * 0.6;
+        const rainAdjustment = rainExpected && farm.need !== 'high' ? 1.5 : 0;
+        return Math.max(0, need + sinceWater + waitFairness - rainAdjustment);
+      }
+      function requestedDuration(farm) { return durationHours[farm.need] ?? 1; }
+      function formatTime(totalMinutes) {
+        const hour24 = Math.floor(totalMinutes / 60) % 24;
+        const minute = totalMinutes % 60;
+        const period = hour24 >= 12 ? 'PM' : 'AM';
+        const hour12 = hour24 % 12 || 12;
+        return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+      }
+      function getTomorrowLabel() {
+        const d = new Date(); d.setDate(d.getDate() + 1);
+        return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+      }
+      function explain(farm) {
+        const bits = [];
+        bits.push(`${farm.need[0].toUpperCase()}${farm.need.slice(1)} stated need`);
+        bits.push(`${farm.daysWatered}d since watering`);
+        if (farm.daysTurn >= 4) bits.push('longer wait for a turn');
+        if (rainExpected && farm.need !== 'high') bits.push('rain lowers non-urgent priority');
+        return bits.join(' · ');
+      }
+      function buildSchedule() {
+        const ranked = farms.map(farm => ({ ...farm, score: scoreFarm(farm), requested: requestedDuration(farm) }));
+        ranked.sort((a, b) => b.score - a.score || b.daysTurn - a.daysTurn || b.daysWatered - a.daysWatered || a.name.localeCompare(b.name));
+        let remaining = availableHours;
+        let currentMinute = 6 * 60;
+        return ranked.map((farm, index) => {
+          const allocated = Math.min(farm.requested, Math.max(0, remaining));
+          if (allocated < 0.5) return { ...farm, index: index + 1, allocated: 0, start: null, end: null, waitlisted: true };
+          const start = currentMinute;
+          const minutes = Math.round(allocated * 60);
+          currentMinute += minutes;
+          remaining = Math.max(0, remaining - allocated);
+          return { ...farm, index: index + 1, allocated, start, end: currentMinute, waitlisted: allocated < farm.requested };
+        });
+      }
+      function renderSchedule() {
+        latestRows = buildSchedule();
+        const list = $('scheduleList');
+        const scheduled = latestRows.filter(row => row.allocated > 0);
+        const waiting = latestRows.filter(row => row.allocated === 0);
+        if (!scheduled.length) {
+          list.innerHTML = '<div class="empty-state">Add a farmer to create a sample schedule.</div>';
+        } else {
+          list.innerHTML = scheduled.map(row => `
+            <article class="schedule-row">
+              <div class="time-label">${formatTime(row.start)}<br>– ${formatTime(row.end)}</div>
+              <div class="timeline-dot" aria-hidden="true">${row.index}</div>
+              <div><div class="farmer-name">${escapeHTML(row.name)}</div><div class="farmer-meta">${escapeHTML(row.crop || 'Crop not set')} · ${row.daysWatered} days since watering</div><div class="reason">${escapeHTML(explain(row))}</div></div>
+              <div class="row-right"><span class="need-badge need-${row.need}">${escapeHTML(row.need)} need</span><div class="duration-label">${row.allocated.toFixed(1)} hr slot${row.waitlisted ? ' · partial' : ''}</div></div>
+            </article>`).join('');
+        }
+        const waitlist = $('waitlist');
+        if (waiting.length) {
+          waitlist.hidden = false;
+          waitlist.innerHTML = `<div class="waitlist-title">Needs another planning window</div>${waiting.map(row => `<div class="wait-item"><span>${escapeHTML(row.name)} · ${escapeHTML(row.need)} stated need</span><span>Next turn</span></div>`).join('')}`;
+        } else {
+          waitlist.hidden = true;
+          waitlist.innerHTML = '';
+        }
+        const requested = latestRows.reduce((sum, row) => sum + row.requested, 0);
+        const scheduledHours = latestRows.reduce((sum, row) => sum + row.allocated, 0);
+        $('availableStat').textContent = String(availableHours);
+        $('requestedStat').textContent = requested.toFixed(1);
+        $('scheduledStat').textContent = scheduledHours.toFixed(1);
+        $('farmerCountStat').textContent = String(farms.length);
+        $('scheduledNote').textContent = waiting.length ? `${waiting.length} request${waiting.length === 1 ? '' : 's'} need another window` : 'All sample requests fit this window';
+        $('tomorrowDate').textContent = getTomorrowLabel();
+        renderFarmList();
+        renderBalance();
+        persist();
+      }
+      function renderFarmList() {
+        const list = $('farmList');
+        if (!farms.length) {
+          list.innerHTML = '<div class="empty-state">No farmers yet. Add a sample member below.</div>';
+          return;
+        }
+        list.innerHTML = farms.map((farm, index) => `
+          <div class="farm-item">
+            <div class="farm-avatar" aria-hidden="true">${escapeHTML(farm.name.trim().slice(0, 1).toUpperCase() || '?')}</div>
+            <div><div class="farm-item-name">${escapeHTML(farm.name)}</div><div class="farm-item-meta">${escapeHTML(farm.crop || 'Crop not set')} · ${farm.daysWatered} days since watering</div></div>
+            <div class="farm-fairness">Last turn<br><strong>${farm.daysTurn}d ago</strong></div>
+            <button class="remove-btn" type="button" data-remove="${escapeHTML(farm.id)}" aria-label="Remove ${escapeHTML(farm.name)} from sample group">Remove</button>
+          </div>`).join('');
+        list.querySelectorAll('[data-remove]').forEach(button => button.addEventListener('click', () => {
+          farms = farms.filter(farm => farm.id !== button.dataset.remove);
+          renderSchedule(); showToast('Removed from the sample group.');
+        }));
+      }
+      function renderBalance() {
+        const graphic = $('balanceGraphic');
+        const sorted = [...farms].sort((a,b) => b.daysTurn - a.daysTurn).slice(0, 6);
+        const max = Math.max(1, ...sorted.map(f => Number(f.daysTurn) || 0));
+        graphic.innerHTML = sorted.length ? sorted.map(farm => {
+          const value = Number(farm.daysTurn) || 0;
+          const height = Math.max(9, Math.round((value / max) * 63));
+          return `<div class="bar-wrap" title="${escapeHTML(farm.name)}: ${value} days since last turn"><div class="bar" style="height:${height}px"></div><div class="bar-label">${escapeHTML(farm.name.split(' ')[0].slice(0, 6))}</div></div>`;
+        }).join('') : '<span style="font-size:10px;color:#88948b;padding-bottom:14px">Add members to see turn history</span>';
+        const longestWait = sorted[0];
+        $('balanceCopy').textContent = longestWait ? `${longestWait.name} has waited ${longestWait.daysTurn} day${longestWait.daysTurn === 1 ? '' : 's'} since their last turn. This is one fairness input—not an automatic decision.` : 'Add sample members to see turn history.';
+      }
+      function showToast(message) {
+        const toast = $('toast'); toast.textContent = message; toast.classList.add('show');
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+      }
+      function downloadCSV() {
+        const header = ['slot','farmer','crop_or_note','stated_need','days_since_watering','days_since_last_turn','hours_allocated','priority_score','status'];
+        const lines = [header.join(',')];
+        latestRows.forEach(row => {
+          const values = [row.index, row.name, row.crop || '', row.need, row.daysWatered, row.daysTurn, row.allocated.toFixed(1), row.score.toFixed(1), row.allocated ? (row.waitlisted ? 'partial' : 'scheduled') : 'next_window'];
+          lines.push(values.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','));
+        });
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob); const link = document.createElement('a');
+        link.href = url; link.download = 'paanipact-demo-schedule.csv'; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+        showToast('Schedule CSV downloaded.');
+      }
+
+      $('rainToggle').addEventListener('click', () => {
+        rainExpected = !rainExpected;
+        $('rainToggle').setAttribute('aria-pressed', String(rainExpected));
+        $('rainToggleText').textContent = rainExpected ? 'Rain adjustment on' : 'Rain adjustment off';
+        $('weatherTitle').textContent = rainExpected ? 'Rain expected' : 'No rain expected';
+        renderSchedule(); showToast(rainExpected ? 'Rain adjustment applied to non-urgent requests.' : 'Rain adjustment turned off.');
+      });
+      $('pumpHours').addEventListener('change', event => { availableHours = Number(event.target.value); renderSchedule(); });
+      $('exportBtn').addEventListener('click', downloadCSV);
+      $('resetBtn').addEventListener('click', () => {
+        farms = defaultFarms.map(f => ({ ...f })); rainExpected = true; availableHours = 8;
+        $('pumpHours').value = '8'; $('rainToggle').setAttribute('aria-pressed', 'true'); $('rainToggleText').textContent = 'Rain adjustment on'; $('weatherTitle').textContent = 'Rain expected';
+        renderSchedule(); showToast('Sample data restored.');
+      });
+      $('farmForm').addEventListener('submit', event => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const name = String(form.get('name') || '').trim();
+        if (!name) return;
+        farms.push({
+          id: `f-${Date.now()}-${Math.random().toString(16).slice(2,6)}`,
+          name, crop: String(form.get('crop') || '').trim() || 'Not specified',
+          need: String(form.get('need') || 'medium'),
+          daysWatered: clamp(form.get('daysWatered'), 0, 30),
+          daysTurn: clamp(form.get('daysTurn'), 0, 30)
+        });
+        event.currentTarget.reset(); $('newNeed').value = 'medium'; $('newWatered').value = '3'; $('newTurn').value = '3';
+        renderSchedule(); showToast(`${name} added to the sample group.`);
+      });
+      document.querySelectorAll('[data-nav]').forEach(link => link.addEventListener('click', () => {
+        document.querySelectorAll('[data-nav]').forEach(item => item.classList.remove('active'));
+        link.classList.add('active');
+      }));
+      $('tomorrowDate').textContent = getTomorrowLabel();
+      restore();
+      $('pumpHours').value = String(availableHours);
+      $('rainToggle').setAttribute('aria-pressed', String(rainExpected));
+      $('rainToggleText').textContent = rainExpected ? 'Rain adjustment on' : 'Rain adjustment off';
+      $('weatherTitle').textContent = rainExpected ? 'Rain expected' : 'No rain expected';
+      renderSchedule();
+    })();
+  </script>
+</body>
+</html>
